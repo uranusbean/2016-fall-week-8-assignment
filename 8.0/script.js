@@ -35,8 +35,8 @@ var axisY = d3.axisLeft()
 
 //Line generator
 var lineGenerator = d3.line()
-    .x(function(d){return scaleX(d.year)})
-    .y(function(d){return scaleY(d.value)})
+    .x(function(d){return scaleX(new Date(d.key))})
+    .y(function(d){return scaleY(d.averagePrice)})
     .curve(d3.curveCardinal);
 
 d3.queue()
@@ -47,6 +47,9 @@ d3.queue()
         scaleX.domain( d3.extent(data,function(d){return d.travelDate}) );
         scaleColor.domain( airlines.values() );
 
+        //Apend the <path>
+        plot.append('path').attr('class','time-series');
+        
         //Add buttons
         d3.select('.btn-group')
             .selectAll('.btn')
@@ -61,8 +64,14 @@ d3.queue()
             .style('border-color','white')
             .on('click',function(d){
                 //Hint: how do we filter flights for particular airlines?
-                //data.filter(...)
-
+                // console.log(d);
+                d3.selectAll('.node')
+                    .attr('hidden',null) 
+                    .filter(function(e){
+                        return e.airline !== d
+                    })
+                    .attr('hidden', true);
+                                  
                 //How do we then update the dots?
             });
 
@@ -85,13 +94,86 @@ function draw(rows){
     flightsByTravelDate.forEach(function(day){
        day.averagePrice = d3.mean(day.values, function(d){return d.price});
     });
-
+    
+    // console.log(flightsByTravelDate);
+    flightsByTravelDate = flightsByTravelDate.sort(function(a,b){
+        var aDate = new Date(a.key);
+        var bDate = new Date(b.key);
+        if (aDate.getTime() > bDate.getTime()) {
+            return 1;
+        } else if (aDate.getTime() < bDate.getTime()) {
+            return -1;
+        }
+        return 0;
+    });
     console.log(flightsByTravelDate);
 
     //Draw dots
+    var node = plot.selectAll('.node')
+        .data(rows,function(d){return d.id});
+    //ENTER
+    var nodeEnter = node.enter()
+        .append('circle')
+        .attr('class','node')
+        .on('click',function(d,i){
+            console.log(d);
+            console.log(i);
+            console.log(this);
+        })
+        .on('mouseenter',function(d){
+            var tooltip = d3.select('.custom-tooltip');
+            tooltip.selectAll('.title')
+                .html((d.travelDate.getMonth()+1) + '/' + d.travelDate.getDate()  + '/' + d.travelDate.getFullYear() )
+            tooltip.select('.value')
+                .html('$'+ d.price);
+            tooltip.transition().style('opacity',1);
+            
+            d3.select(this).style('stroke-width','3px');
+        })
+        .on('mousemove',function(d){
+             var tooltip = d3.select('.custom-tooltip');
+             var xy = d3.mouse(d3.select('.container').node());
+             tooltip
+                .style('left',xy[0]+10+'px')
+                .style('top',xy[1]+10+'px');
+        })
+        .on('mouseleave',function(d){
+             var tooltip = d3.select('.custom-tooltip');
+             tooltip.transition().style('opacity',0);
+             d3.select(this).style('stroke-width','0px');
+        })
+    //UPDATE+ ENTER
+    nodeEnter
+        .merge(node)
+        .attr('cx',function(d){
+            return scaleX(d.travelDate);
+        })
+        .attr('cy',function(d){
+            return scaleY(d.price);
+        })
+        .attr('r',3)
+        .style('fill',function(d){
+            return scaleColor(d.airline);
+        })
+        .style('opacity',1);
 
+    //EXIT
+    node.exit().remove();
 
     //Draw <path>
+    plot.select('.time-series')
+        .datum(flightsByTravelDate)
+        .transition()
+        .attr('d',function(array){
+            // console.log(array);
+            return lineGenerator(array);
+        }) 
+        .style('fill','none')
+        .style('stroke-width','2px')
+        .style('stroke','black')
+        // .style('stroke',function(array){
+        //     return scaleColor(array[0].airline);
+        // });
 }
 
 function parse(d){

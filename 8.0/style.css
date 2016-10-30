@@ -10,3 +10,14 @@
     stroke:black;
     stroke-width:0px;
 }
+
+.custom-tooltip {
+    width: 100px;
+    height: 60px;
+    border: 1px solid #ddd;		
+    border-radius: 8px;	
+    opacity: 0;
+    background: #eee;
+    padding: 3px;
+    text-align: center;
+}
